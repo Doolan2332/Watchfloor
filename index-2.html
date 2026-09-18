@@ -1,0 +1,1789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Watchfloor — a reading desk for security advisories and research</title>
+<meta name="description" content="A private reader that pulls cybersecurity advisories, research and reporting into one newest-first feed. No accounts, no tracking, nothing shared.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EDEFF2; --card:#FFFFFF; --card-2:#F7F8FA;
+  --ink:#1B2430; --ink-soft:#5A6675; --ink-faint:#8B95A1;
+  --rule:#D5DAE0; --rule-soft:#E4E8EC;
+  --link:#14555E; --link-hot:#0E3F46;
+  --signal:#AF3A1B;
+  --t-quantum:#4B3A8F; --t-ai:#1F6F5C; --t-breach:#8A2846;
+  --t-exploit:#AF3A1B; --t-ransom:#6B4A12; --t-policy:#495A6B;
+  --new:#B26A00;
+  --shadow:0 1px 0 rgba(27,36,48,.04);
+  --col-nav:216px; --col-side:316px; --col-feed:632px;
+}
+:root[data-theme="dark"]{
+  --paper:#151C25; --card:#1C2530; --card-2:#222C38;
+  --ink:#E7EBEF; --ink-soft:#9AA6B3; --ink-faint:#71808F;
+  --rule:#2C3845; --rule-soft:#242F3B;
+  --link:#67C3CD; --link-hot:#8FD8E0;
+  --signal:#EA8058;
+  --t-quantum:#9C8CE0; --t-ai:#57B398; --t-breach:#DD7793;
+  --t-exploit:#EA8058; --t-ransom:#C79A46; --t-policy:#8FA3B7;
+  --new:#E0A03A;
+  --shadow:none;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#151C25; --card:#1C2530; --card-2:#222C38;
+    --ink:#E7EBEF; --ink-soft:#9AA6B3; --ink-faint:#71808F;
+    --rule:#2C3845; --rule-soft:#242F3B;
+    --link:#67C3CD; --link-hot:#8FD8E0;
+    --signal:#EA8058;
+    --t-quantum:#9C8CE0; --t-ai:#57B398; --t-breach:#DD7793;
+    --t-exploit:#EA8058; --t-ransom:#C79A46; --t-policy:#8FA3B7;
+    --new:#E0A03A;
+    --shadow:none;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:"IBM Plex Sans","Segoe UI",Helvetica,Arial,sans-serif;
+  font-size:15px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--link); text-decoration:none}
+a:hover{color:var(--link-hot); text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:2px}
+button,select,input,textarea{font:inherit; color:inherit}
+:focus-visible{outline:2px solid var(--link); outline-offset:2px; border-radius:3px}
+.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+
+/* ---------- shell ---------- */
+.shell{
+  display:grid; gap:0;
+  grid-template-columns:var(--col-nav) minmax(0,var(--col-feed)) var(--col-side);
+  max-width:1180px; margin:0 auto;
+}
+.nav{
+  grid-column:1; position:sticky; top:0; align-self:start; height:100vh;
+  padding:22px 18px 18px 0; display:flex; flex-direction:column;
+}
+.feedcol{
+  grid-column:2; min-width:0;
+  border-left:1px solid var(--rule); border-right:1px solid var(--rule);
+  background:var(--card); min-height:100vh;
+}
+.side{grid-column:3; padding:22px 0 60px 20px}
+
+/* ---------- brand ---------- */
+.brand{display:flex; align-items:center; gap:10px; margin-bottom:26px; padding-left:4px}
+.brand svg{flex:none}
+.brand-name{font-family:Newsreader,Georgia,serif; font-size:23px; font-weight:600; letter-spacing:-.01em; line-height:1}
+.brand-sub{font-size:11.5px; color:var(--ink-faint); margin-top:3px; letter-spacing:.01em}
+
+/* ---------- nav items ---------- */
+.navlist{display:flex; flex-direction:column; gap:2px}
+.navitem{
+  display:flex; align-items:center; gap:11px; width:100%;
+  padding:9px 12px; border:0; border-radius:6px; background:none;
+  cursor:pointer; text-align:left; color:var(--ink-soft); font-size:15px;
+}
+.navitem:hover{background:var(--card-2); color:var(--ink)}
+.navitem[aria-current="page"]{background:var(--card); color:var(--ink); font-weight:600; box-shadow:var(--shadow)}
+.navitem .count{margin-left:auto; font-size:12px; color:var(--ink-faint); font-variant-numeric:tabular-nums}
+.navicon{width:17px; height:17px; flex:none}
+.navfoot{margin-top:auto; padding:14px 12px 0; border-top:1px solid var(--rule)}
+.navfoot p{margin:0 0 10px; font-size:11.5px; color:var(--ink-faint); line-height:1.45}
+.themebtn{
+  display:flex; align-items:center; gap:8px; background:none; border:1px solid var(--rule);
+  padding:6px 10px; border-radius:6px; cursor:pointer; font-size:12.5px; color:var(--ink-soft);
+}
+.themebtn:hover{border-color:var(--ink-faint); color:var(--ink)}
+
+/* ---------- feed header ---------- */
+.fhead{position:sticky; top:0; z-index:20; background:var(--card); border-bottom:1px solid var(--rule)}
+.fhead-top{padding:16px 20px 12px}
+.fhead h1{margin:0 0 3px; font-family:Newsreader,Georgia,serif; font-weight:600; font-size:25px; letter-spacing:-.015em}
+.status{font-size:12.5px; color:var(--ink-soft); margin:0}
+.status b{font-weight:500; color:var(--ink)}
+.ctrls{display:flex; align-items:center; gap:8px; margin-top:12px; flex-wrap:wrap}
+.check{
+  display:inline-flex; align-items:center; gap:7px;
+  background:var(--ink); color:var(--card); border:0; border-radius:6px;
+  padding:8px 15px; font-size:13.5px; font-weight:500; cursor:pointer;
+}
+.check:hover{opacity:.87}
+.check:disabled{opacity:.5; cursor:progress}
+.check svg{width:14px; height:14px}
+.spin{animation:spin 1s linear infinite; transform-origin:50% 50%}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pollwrap{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-soft)}
+.pollwrap select{
+  background:var(--card); border:1px solid var(--rule); border-radius:6px;
+  padding:7px 8px; font-size:12.5px; cursor:pointer;
+}
+.search{
+  flex:1; min-width:140px; background:var(--card-2); border:1px solid var(--rule);
+  border-radius:6px; padding:8px 11px; font-size:13.5px;
+}
+.search::placeholder{color:var(--ink-faint)}
+
+/* topic chips */
+.chips{display:flex; gap:6px; padding:0 20px 12px; overflow-x:auto; scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{
+  display:inline-flex; align-items:baseline; gap:6px; white-space:nowrap;
+  background:none; border:1px solid var(--rule); border-radius:999px;
+  padding:5px 12px; font-size:12.5px; cursor:pointer; color:var(--ink-soft);
+}
+.chip:hover{border-color:var(--ink-faint); color:var(--ink)}
+.chip .n{font-size:11px; color:var(--ink-faint); font-variant-numeric:tabular-nums}
+.chip[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:var(--card); font-weight:500}
+.chip[aria-pressed="true"] .n{color:var(--card); opacity:.65}
+.chip[data-topic="quantum"][aria-pressed="true"]{background:var(--t-quantum); border-color:var(--t-quantum); color:#fff}
+.chip[data-topic="ai"][aria-pressed="true"]{background:var(--t-ai); border-color:var(--t-ai); color:#fff}
+.chip[data-topic="breach"][aria-pressed="true"]{background:var(--t-breach); border-color:var(--t-breach); color:#fff}
+.chip[data-topic="exploit"][aria-pressed="true"]{background:var(--t-exploit); border-color:var(--t-exploit); color:#fff}
+.chip[data-topic="ransom"][aria-pressed="true"]{background:var(--t-ransom); border-color:var(--t-ransom); color:#fff}
+.chip[data-topic="policy"][aria-pressed="true"]{background:var(--t-policy); border-color:var(--t-policy); color:#fff}
+.chip[data-topic="quantum"][aria-pressed="true"] .n,
+.chip[data-topic="ai"][aria-pressed="true"] .n,
+.chip[data-topic="breach"][aria-pressed="true"] .n,
+.chip[data-topic="exploit"][aria-pressed="true"] .n,
+.chip[data-topic="ransom"][aria-pressed="true"] .n,
+.chip[data-topic="policy"][aria-pressed="true"] .n{color:#fff; opacity:.7}
+
+/* countdown rule */
+.tick{height:2px; background:var(--rule-soft); position:relative; overflow:hidden}
+.tick i{
+  position:absolute; inset:0 auto 0 0; width:0%; background:var(--new);
+  transition:width 1s linear;
+}
+@media (prefers-reduced-motion:reduce){
+  .tick i{transition:none}
+  .spin{animation:none}
+}
+
+/* active filter note */
+.fnote{
+  display:flex; align-items:center; gap:10px; padding:9px 20px;
+  background:var(--card-2); border-bottom:1px solid var(--rule); font-size:12.5px; color:var(--ink-soft);
+}
+.fnote button{background:none; border:0; color:var(--link); cursor:pointer; padding:0; font-size:12.5px; text-decoration:underline}
+
+/* ---------- items ---------- */
+.items{display:flex; flex-direction:column}
+.item{
+  position:relative; display:block; padding:16px 20px 14px 20px;
+  border-bottom:1px solid var(--rule-soft); cursor:pointer;
+  border-left:3px solid transparent;
+}
+.item:hover{background:var(--card-2)}
+.item[data-band="quantum"]{border-left-color:var(--t-quantum)}
+.item[data-band="ai"]{border-left-color:var(--t-ai)}
+.item[data-band="breach"]{border-left-color:var(--t-breach)}
+.item[data-band="exploit"]{border-left-color:var(--t-exploit)}
+.item[data-band="ransom"]{border-left-color:var(--t-ransom)}
+.item[data-band="policy"]{border-left-color:var(--t-policy)}
+.imeta{display:flex; align-items:center; gap:9px; margin-bottom:5px; font-size:12.5px; min-width:0}
+.isrc{
+  background:none; border:0; padding:0; cursor:pointer; color:var(--link);
+  font-weight:500; font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:220px;
+}
+.isrc:hover{text-decoration:underline}
+.ikind{
+  font-size:10.5px; color:var(--ink-faint); border:1px solid var(--rule);
+  border-radius:3px; padding:1px 5px; white-space:nowrap;
+}
+.itime{color:var(--ink-faint); margin-left:auto; white-space:nowrap; font-variant-numeric:tabular-nums}
+.inew{
+  width:6px; height:6px; border-radius:50%; background:var(--new); flex:none;
+}
+.ititle{
+  margin:0 0 5px; font-family:Newsreader,Georgia,serif; font-weight:500;
+  font-size:19.5px; line-height:1.32; letter-spacing:-.005em; color:var(--ink);
+  max-width:60ch;
+}
+.item:hover .ititle{color:var(--link-hot)}
+.idesc{margin:0; font-size:13.5px; line-height:1.55; color:var(--ink-soft); max-width:68ch}
+.ifoot{display:flex; align-items:center; gap:6px; margin-top:10px; flex-wrap:wrap}
+.tag{font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--rule); color:var(--ink-soft)}
+.tag[data-topic="quantum"]{color:var(--t-quantum); border-color:currentColor}
+.tag[data-topic="ai"]{color:var(--t-ai); border-color:currentColor}
+.tag[data-topic="breach"]{color:var(--t-breach); border-color:currentColor}
+.tag[data-topic="exploit"]{color:var(--t-exploit); border-color:currentColor}
+.tag[data-topic="ransom"]{color:var(--t-ransom); border-color:currentColor}
+.tag[data-topic="policy"]{color:var(--t-policy); border-color:currentColor}
+.cve{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; padding:2px 7px;
+  border-radius:3px; background:var(--card-2); border:1px solid var(--rule); color:var(--ink-soft);
+}
+.save{
+  margin-left:auto; background:none; border:1px solid var(--rule); border-radius:6px;
+  padding:4px 10px; font-size:12px; cursor:pointer; color:var(--ink-soft);
+  display:inline-flex; align-items:center; gap:5px;
+}
+.save:hover{border-color:var(--ink-faint); color:var(--ink)}
+.save svg{width:12px; height:12px}
+.save[aria-pressed="true"]{color:var(--signal); border-color:var(--signal)}
+.loadmore{
+  width:100%; padding:16px; background:none; border:0; border-bottom:1px solid var(--rule-soft);
+  cursor:pointer; color:var(--link); font-size:13.5px;
+}
+.loadmore:hover{background:var(--card-2)}
+
+/* ---------- empty / error ---------- */
+.empty{padding:52px 24px; text-align:center}
+.empty h2{margin:0 0 7px; font-family:Newsreader,Georgia,serif; font-weight:500; font-size:21px}
+.empty p{margin:0 auto 14px; max-width:44ch; font-size:13.5px; color:var(--ink-soft); line-height:1.6}
+.empty .check{margin:0 auto}
+
+/* ---------- side panels ---------- */
+.panel{margin-bottom:18px; background:var(--card); border:1px solid var(--rule); border-radius:8px; overflow:hidden}
+.panel > h2{
+  margin:0; padding:13px 15px 11px; font-family:Newsreader,Georgia,serif;
+  font-size:16.5px; font-weight:600; border-bottom:1px solid var(--rule-soft);
+}
+.panel > h2 span{font-family:"IBM Plex Sans",sans-serif; font-size:11.5px; font-weight:400; color:var(--ink-faint); margin-left:6px}
+.panel-body{padding:13px 15px}
+.panel-body p{margin:0 0 11px; font-size:12.5px; color:var(--ink-soft); line-height:1.5}
+.panel-body p:last-child{margin-bottom:0}
+
+.srclist{list-style:none; margin:0; padding:0}
+.srclist li{
+  display:flex; align-items:flex-start; gap:10px; padding:10px 15px;
+  border-bottom:1px solid var(--rule-soft);
+}
+.srclist li:last-child{border-bottom:0}
+.srclist li.ghdr{
+  display:block; padding:9px 15px 6px; background:var(--card-2);
+  font-size:11.5px; color:var(--ink-faint); letter-spacing:.005em;
+  border-bottom:1px solid var(--rule-soft);
+}
+.srclist li.ghdr:first-child{padding-top:8px}
+.srcmain{min-width:0; flex:1}
+.srcname{
+  display:block; background:none; border:0; padding:0; text-align:left; cursor:pointer;
+  font-size:13.5px; font-weight:500; color:var(--ink); line-height:1.35;
+}
+.srcname:hover{color:var(--link); text-decoration:underline}
+.srcnote{display:block; margin-top:2px; font-size:11.5px; color:var(--ink-faint); line-height:1.4}
+.srcstat{display:inline-flex; align-items:center; gap:5px; margin-top:4px; font-size:11px; color:var(--ink-faint)}
+.dot{width:6px; height:6px; border-radius:50%; background:var(--ink-faint); flex:none}
+.dot.ok{background:var(--t-ai)} .dot.bad{background:var(--signal)} .dot.wait{background:var(--new)}
+.follow{
+  flex:none; background:none; border:1px solid var(--rule); border-radius:999px;
+  padding:4px 12px; font-size:12px; cursor:pointer; color:var(--ink);
+}
+.follow:hover{border-color:var(--ink-faint)}
+.follow[data-on="true"]{background:var(--ink); border-color:var(--ink); color:var(--card)}
+.follow[data-on="true"]:hover{background:var(--signal); border-color:var(--signal)}
+.remove{
+  flex:none; background:none; border:0; cursor:pointer; color:var(--ink-faint);
+  font-size:16px; line-height:1; padding:4px 6px; border-radius:4px;
+}
+.remove:hover{color:var(--signal); background:var(--card-2)}
+
+/* forms */
+.field{display:block; margin-bottom:10px}
+.field span{display:block; font-size:12px; color:var(--ink-soft); margin-bottom:4px}
+.field input{
+  width:100%; background:var(--card-2); border:1px solid var(--rule);
+  border-radius:6px; padding:8px 10px; font-size:13px;
+}
+.rowbtns{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.btn{
+  background:var(--ink); color:var(--card); border:0; border-radius:6px;
+  padding:8px 14px; font-size:13px; font-weight:500; cursor:pointer;
+}
+.btn:hover{opacity:.87}
+.btn:disabled{opacity:.5; cursor:progress}
+.btn-quiet{background:none; border:1px solid var(--rule); color:var(--ink); font-weight:400}
+.btn-quiet:hover{border-color:var(--ink-faint); opacity:1}
+.msg{margin:9px 0 0; font-size:12px; line-height:1.45}
+.msg.ok{color:var(--t-ai)} .msg.bad{color:var(--signal)} .msg.info{color:var(--ink-soft)}
+
+/* ---------- top options bar, narrow layouts only ---------- */
+.topbar{display:none}
+.topbar-in{
+  display:flex; align-items:center; gap:8px; width:100%;
+  max-width:760px; margin:0 auto; padding:9px 14px;
+}
+.topbar .brand{margin:0; padding:0; gap:8px; min-width:0}
+.vtabs{
+  display:flex; gap:2px; margin-left:auto; flex:none;
+  background:var(--card-2); border:1px solid var(--rule); border-radius:999px; padding:2px;
+}
+.vtabs button{
+  border:0; background:none; border-radius:999px; padding:5px 12px;
+  font-size:12.5px; color:var(--ink-soft); cursor:pointer; white-space:nowrap;
+}
+.vtabs button:hover{color:var(--ink)}
+.vtabs button[aria-current="page"]{background:var(--ink); color:var(--card); font-weight:600}
+.vtabs .n{font-size:10.5px; opacity:.7; margin-left:4px; font-variant-numeric:tabular-nums}
+.iconbtn{
+  flex:none; width:33px; height:33px; padding:0; background:none;
+  border:1px solid var(--rule); border-radius:6px; cursor:pointer; color:var(--ink-soft);
+  display:inline-flex; align-items:center; justify-content:center;
+}
+.iconbtn:hover{border-color:var(--ink-faint); color:var(--ink)}
+.iconbtn:disabled{opacity:.5; cursor:progress}
+.iconbtn svg{width:15px; height:15px}
+
+/* ---------- narrow window: one column, every control at the top ---------- */
+@media (max-width:1180px){
+  .shell{grid-template-columns:minmax(0,1fr); max-width:760px}
+  .nav{display:none}
+  .topbar{
+    display:block; position:sticky; top:0; z-index:40;
+    background:var(--card); border-bottom:1px solid var(--rule);
+  }
+  .feedcol{grid-column:1; border-left:0; border-right:0}
+  .side{grid-column:1; padding:0 14px 56px}
+  body[data-view="feed"] .side,
+  body[data-view="bookmarks"] .side{display:none}
+  body[data-view="sources"] .feedcol{display:none}
+  body[data-view="sources"] .side{padding-top:16px}
+  .fhead{position:static; border-bottom:1px solid var(--rule)}
+  .fhead h1{display:none}
+  .fhead-top{padding:13px 16px 11px}
+  .chips{padding:0 16px 11px}
+  .items{padding-bottom:28px}
+}
+@media (max-width:560px){
+  .topbar-in{gap:6px; padding:8px 12px}
+  .topbar .brand-name{display:none}
+  .vtabs button{padding:5px 10px; font-size:12px}
+  .vtabs .n{display:none}
+  .fhead-top{padding:12px 14px 10px}
+  .chips{padding:0 14px 10px}
+  .item{padding:14px 14px 12px}
+  .ititle{font-size:18px}
+  .side{padding-left:0; padding-right:0}
+  .panel{border-radius:0; border-left:0; border-right:0}
+  .search{min-width:100%; order:3}
+}
+.sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+</style>
+</head>
+<body data-view="feed">
+
+<div class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <svg width="23" height="23" viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor"><circle cx="5" cy="5" r="1.6" opacity=".32"/><circle cx="12" cy="5" r="1.6" opacity=".32"/><circle cx="19" cy="5" r="1.6" opacity=".32"/><circle cx="5" cy="12" r="1.6" opacity=".32"/><circle cx="12" cy="12" r="3" fill="var(--signal)"/><circle cx="19" cy="12" r="1.6" opacity=".32"/><circle cx="5" cy="19" r="1.6" opacity=".32"/><circle cx="12" cy="19" r="1.6" opacity=".32"/><circle cx="19" cy="19" r="1.6" opacity=".32"/></g></svg>
+      <span class="brand-name">Watchfloor</span>
+    </div>
+    <div class="vtabs" role="group" aria-label="Sections">
+      <button type="button" data-nav="feed" aria-current="page">Feed</button>
+      <button type="button" data-nav="bookmarks">Saved<span class="n" id="tab-saved-n"></span></button>
+      <button type="button" data-nav="sources">Sources</button>
+    </div>
+    <button class="iconbtn" id="check-mini" type="button" title="Check for new articles" aria-label="Check for new articles">
+      <svg id="check-mini-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>
+    </button>
+    <button class="iconbtn" id="theme-mob" type="button" title="Change theme" aria-label="Change theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+    </button>
+  </div>
+</div>
+
+<div class="shell">
+
+  <!-- ============ left nav ============ -->
+  <nav class="nav" aria-label="Sections">
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor"><circle cx="5" cy="5" r="1.7" opacity=".32"/><circle cx="12" cy="5" r="1.7" opacity=".32"/><circle cx="19" cy="5" r="1.7" opacity=".32"/><circle cx="5" cy="12" r="1.7" opacity=".32"/><circle cx="12" cy="12" r="3.2" fill="var(--signal)"/><circle cx="19" cy="12" r="1.7" opacity=".32"/><circle cx="5" cy="19" r="1.7" opacity=".32"/><circle cx="12" cy="19" r="1.7" opacity=".32"/><circle cx="19" cy="19" r="1.7" opacity=".32"/></g></svg>
+      <div>
+        <div class="brand-name">Watchfloor</div>
+        <div class="brand-sub">Advisories, research, reporting</div>
+      </div>
+    </div>
+    <div class="navlist">
+      <button class="navitem" type="button" data-nav="feed" aria-current="page">
+        <svg class="navicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+        Feed <span class="count" id="nav-feed-n"></span>
+      </button>
+      <button class="navitem" type="button" data-nav="bookmarks">
+        <svg class="navicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 3h12v18l-6-4.5L6 21z"/></svg>
+        Saved <span class="count" id="nav-saved-n"></span>
+      </button>
+      <button class="navitem" type="button" data-nav="sources">
+        <svg class="navicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 3 2.5 15 0 18M12 3c-2.5 3-2.5 15 0 18"/></svg>
+        Sources <span class="count" id="nav-src-n"></span>
+      </button>
+    </div>
+    <div class="navfoot">
+      <p>Everything stays in this browser. Nothing is uploaded, shared or published.</p>
+      <button class="themebtn" id="theme-desk" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+        <span id="theme-label">Light</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ============ centre column ============ -->
+  <main class="feedcol" id="feedcol">
+    <header class="fhead">
+      <div class="fhead-top">
+        <h1 id="col-title">Feed</h1>
+        <p class="status" id="status">Loading your sources…</p>
+        <div class="ctrls">
+          <button class="check" id="check" type="button">
+            <svg id="check-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>
+            <span id="check-label">Check now</span>
+          </button>
+          <span class="pollwrap">
+            <label for="poll">Auto</label>
+            <select id="poll">
+              <option value="0">Off</option>
+              <option value="5">Every 5 min</option>
+              <option value="15">Every 15 min</option>
+              <option value="30" selected>Every 30 min</option>
+              <option value="60">Every hour</option>
+              <option value="180">Every 3 hours</option>
+              <option value="360">Every 6 hours</option>
+            </select>
+          </span>
+          <input class="search" id="search" type="search" placeholder="Search headlines and summaries" aria-label="Search the feed">
+        </div>
+      </div>
+      <div class="chips" id="chips" role="group" aria-label="Filter by subject"></div>
+      <div class="tick" aria-hidden="true"><i id="tick"></i></div>
+    </header>
+    <div id="fnote-slot"></div>
+    <div class="items" id="items"></div>
+  </main>
+
+  <!-- ============ right column ============ -->
+  <aside class="side" aria-label="Sources and settings">
+    <section class="panel">
+      <h2>Following <span id="following-n"></span></h2>
+      <ul class="srclist" id="following"></ul>
+    </section>
+
+    <section class="panel">
+      <h2>Add a feed</h2>
+      <div class="panel-body">
+        <p>Paste an RSS or Atom address. Most publications put it at <span class="mono">/feed</span> or <span class="mono">/rss.xml</span>.</p>
+        <label class="field"><span>Feed address</span>
+          <input id="add-url" type="url" placeholder="https://example.com/feed" spellcheck="false" autocomplete="off">
+        </label>
+        <label class="field"><span>Name it (optional)</span>
+          <input id="add-name" type="text" placeholder="Taken from the feed if left blank" autocomplete="off">
+        </label>
+        <div class="rowbtns">
+          <button class="btn" id="add-go" type="button">Add and follow</button>
+          <button class="btn btn-quiet" id="add-test" type="button">Test it first</button>
+        </div>
+        <p class="msg info" id="add-msg"></p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Suggested <span>tap to follow</span></h2>
+      <ul class="srclist" id="suggested"></ul>
+    </section>
+
+    <section class="panel">
+      <h2>Settings</h2>
+      <div class="panel-body">
+        <p>Browsers block a page from reading another site's feed directly, so requests are relayed through a public read-only proxy. Point this at your own relay for better reliability.</p>
+        <label class="field"><span>Relay address, with <span class="mono">{url}</span> where the feed goes</span>
+          <input id="proxy" type="text" placeholder="https://my-worker.workers.dev/?url={url}" spellcheck="false" autocomplete="off">
+        </label>
+        <div class="rowbtns">
+          <button class="btn btn-quiet" id="proxy-save" type="button">Save relay</button>
+          <button class="btn btn-quiet" id="export-cfg" type="button">Export settings</button>
+          <button class="btn btn-quiet" id="export-opml" type="button">Export OPML</button>
+          <button class="btn btn-quiet" id="import-cfg" type="button">Import settings</button>
+        </div>
+        <p class="msg info" id="set-msg"></p>
+        <p style="margin-top:12px">Keyboard: <span class="mono">r</span> checks for new items, <span class="mono">/</span> jumps to search.</p>
+      </div>
+    </section>
+  </aside>
+</div>
+
+<input type="file" id="file-in" accept=".json,application/json" class="sr">
+
+<script>
+"use strict";
+(function(){
+
+/* =====================================================================
+   1. Source catalogue
+   ===================================================================== */
+var CATALOGUE = [
+  // --- Government of Canada ---
+  {id:"cccs-alert", name:"Cyber Centre alerts and advisories", kind:"advisory", gov:true, region:"ca", on:true,
+   url:"https://www.cyber.gc.ca/api/cccs/rss/v1/get?feed=alerts_advisories&lang=en",
+   site:"https://www.cyber.gc.ca/en/alerts-advisories",
+   note:"Canada's AL and AV serials, the primary national advisory stream"},
+  {id:"cccs-news", name:"Cyber Centre guidance, news and events", kind:"guidance", gov:true, region:"ca", on:true,
+   url:"https://www.cyber.gc.ca/api/cccs/rss/v1/get?feed=news_events_guidance&lang=en",
+   site:"https://www.cyber.gc.ca/en",
+   note:"ITSP and ITSAP publications, including quantum-readiness guidance"},
+  {id:"opc-ca", name:"Privacy Commissioner of Canada", kind:"guidance", gov:true, region:"ca", on:true,
+   url:"https://www.priv.gc.ca/en/rss/blog",
+   site:"https://www.priv.gc.ca/en/blog/",
+   note:"PIPEDA investigations and breach findings"},
+
+  // --- United States federal ---
+  {id:"cisa-adv",  name:"CISA cybersecurity advisories", kind:"advisory", gov:true, region:"us", on:true,
+   url:"https://www.cisa.gov/cybersecurity-advisories/all.xml",
+   site:"https://www.cisa.gov/news-events/cybersecurity-advisories",
+   note:"Alerts, joint advisories and known-exploited additions"},
+  {id:"cisa-ics",  name:"CISA ICS advisories", kind:"advisory", gov:true, region:"us", on:false,
+   url:"https://www.cisa.gov/cybersecurity-advisories/ics-advisories.xml",
+   site:"https://www.cisa.gov/news-events/cybersecurity-advisories",
+   note:"Industrial control system and OT vulnerabilities"},
+  {id:"cisa-ics-med", name:"CISA medical device advisories", kind:"advisory", gov:true, region:"us", on:false,
+   url:"https://www.cisa.gov/cybersecurity-advisories/ics-medical-advisories.xml",
+   site:"https://www.cisa.gov/news-events/cybersecurity-advisories",
+   note:"Connected medical equipment advisories"},
+  {id:"cisa-blog", name:"CISA blog", kind:"guidance", gov:true, region:"us", on:false,
+   url:"https://www.cisa.gov/cisa/blog.xml",
+   site:"https://www.cisa.gov/news-events/cisa-blog",
+   note:"Programme announcements and defensive guidance"},
+  {id:"uscert-alerts", name:"US-CERT alerts", kind:"advisory", gov:true, region:"us", on:false,
+   url:"https://us-cert.cisa.gov/ncas/alerts.xml",
+   site:"https://www.cisa.gov/news-events/cybersecurity-advisories",
+   note:"Legacy National Cyber Awareness System alert stream"},
+  {id:"uscert-activity", name:"US-CERT current activity", kind:"advisory", gov:true, region:"us", on:false,
+   url:"https://us-cert.cisa.gov/ncas/current-activity.xml",
+   site:"https://www.cisa.gov/news-events/cybersecurity-advisories",
+   note:"Short notices on active issues"},
+  {id:"nist-cyber", name:"NIST cybersecurity news", kind:"guidance", gov:true, region:"us", on:true,
+   url:"https://www.nist.gov/news-events/cybersecurity/rss.xml",
+   site:"https://www.nist.gov/cybersecurity-and-privacy",
+   note:"Everything NIST publishes under its cybersecurity topic"},
+  {id:"csrc-drafts", name:"NIST CSRC drafts open for comment", kind:"research", gov:true, region:"us", on:true,
+   url:"https://csrc.nist.gov/CSRC/media/feeds/pubs/drafts-open-for-comment.xml",
+   site:"https://csrc.nist.gov/publications/drafts-open-for-comment",
+   note:"Draft FIPS, SPs and white papers while comments are still open"},
+  {id:"nist-ci",   name:"NIST Cybersecurity Insights", kind:"research", gov:true, region:"us", on:true,
+   url:"https://www.nist.gov/blogs/cybersecurity-insights/rss.xml",
+   site:"https://www.nist.gov/blogs/cybersecurity-insights",
+   note:"Standards work explained, including the FIPS 203/204/205 programme"},
+  {id:"nist-standards", name:"NIST standards news", kind:"guidance", gov:true, region:"us", on:false,
+   url:"https://www.nist.gov/news-events/standards/rss.xml",
+   site:"https://www.nist.gov/standards",
+   note:"Standardisation activity across all NIST programmes"},
+  {id:"nist-news", name:"NIST news", kind:"guidance", gov:true, region:"us", on:false,
+   url:"https://www.nist.gov/news-events/news/rss.xml",
+   site:"https://www.nist.gov/news-events/news",
+   note:"All NIST releases. Broad, not security-only"},
+  {id:"nvd",       name:"NVD analysed CVEs", kind:"advisory", gov:true, region:"us", on:false,
+   url:"https://nvd.nist.gov/feeds/xml/cve/misc/nvd-rss-analyzed.xml",
+   site:"https://nvd.nist.gov",
+   note:"High volume. Turn it on when you want raw CVE flow"},
+
+  // --- other national agencies ---
+  {id:"ncsc-uk",   name:"NCSC UK", kind:"advisory", gov:true, region:"intl", on:true,
+   url:"https://www.ncsc.gov.uk/api/1/services/v1/all-rss-feed.xml",
+   site:"https://www.ncsc.gov.uk",
+   note:"UK advisories, reports and guidance"},
+  {id:"acsc",      name:"ACSC Australia", kind:"advisory", gov:true, region:"intl", on:false,
+   url:"https://www.cyber.gov.au/rss/news",
+   site:"https://www.cyber.gov.au",
+   note:"Australian Signals Directorate advisories"},
+  {id:"cert-eu",   name:"CERT-EU", kind:"advisory", gov:true, region:"intl", on:false,
+   url:"https://cert.europa.eu/publications/security-advisories-rss",
+   site:"https://cert.europa.eu",
+   note:"Advisories for EU institutions"},
+
+  // --- reporting ---
+  {id:"krebs",     name:"Krebs on Security", kind:"reporting", on:true,
+   url:"https://krebsonsecurity.com/feed/", site:"https://krebsonsecurity.com",
+   note:"Investigative work on cybercrime and fraud"},
+  {id:"bleeping",  name:"BleepingComputer", kind:"reporting", on:true,
+   url:"https://www.bleepingcomputer.com/feed/", site:"https://www.bleepingcomputer.com",
+   note:"Fast breach and ransomware coverage"},
+  {id:"thn",       name:"The Hacker News", kind:"reporting", on:true,
+   url:"https://thehackernews.com/feeds/posts/default", site:"https://thehackernews.com",
+   note:"Daily roundup of incidents and disclosures"},
+  {id:"record",    name:"The Record", kind:"reporting", on:true,
+   url:"https://therecord.media/feed", site:"https://therecord.media",
+   note:"Nation-state activity and policy reporting"},
+  {id:"darkreading", name:"Dark Reading", kind:"reporting", on:false,
+   url:"https://www.darkreading.com/rss.xml", site:"https://www.darkreading.com",
+   note:"Enterprise defence and threat analysis"},
+  {id:"secweek",   name:"SecurityWeek", kind:"reporting", on:false,
+   url:"https://feeds.feedburner.com/securityweek", site:"https://www.securityweek.com",
+   note:"Industry and vulnerability news"},
+  {id:"infosecmag", name:"Infosecurity Magazine", kind:"reporting", on:false,
+   url:"https://www.infosecurity-magazine.com/rss/news/", site:"https://www.infosecurity-magazine.com",
+   note:"Breach and compliance reporting"},
+  {id:"register",  name:"The Register — Security", kind:"reporting", on:false,
+   url:"https://www.theregister.com/security/headlines.atom", site:"https://www.theregister.com/security/",
+   note:"Sceptical, detail-heavy coverage"},
+  {id:"cluley",    name:"Graham Cluley", kind:"reporting", on:false,
+   url:"https://www.grahamcluley.com/feed/", site:"https://grahamcluley.com",
+   note:"Commentary and scam analysis"},
+  {id:"secaffairs", name:"Security Affairs", kind:"reporting", on:false,
+   url:"https://securityaffairs.com/feed", site:"https://securityaffairs.com",
+   note:"Broad daily incident coverage"},
+
+  // --- research and analysis ---
+  {id:"schneier",  name:"Schneier on Security", kind:"analysis", on:true,
+   url:"https://www.schneier.com/feed/atom/", site:"https://www.schneier.com",
+   note:"Cryptography and security policy essays"},
+  {id:"sans-isc",  name:"SANS Internet Storm Center", kind:"research", on:true,
+   url:"https://isc.sans.edu/rssfeed_full.xml", site:"https://isc.sans.edu",
+   note:"Daily handler diaries on live attack traffic"},
+  {id:"p0",        name:"Google Project Zero", kind:"research", on:true,
+   url:"https://googleprojectzero.blogspot.com/feeds/posts/default",
+   site:"https://googleprojectzero.blogspot.com",
+   note:"Deep vulnerability research and exploit write-ups"},
+  {id:"iacr",      name:"IACR ePrint Archive", kind:"research", on:false,
+   url:"https://eprint.iacr.org/rss/rss.xml", site:"https://eprint.iacr.org",
+   note:"Preprints on lattices, isogenies and PQC constructions"},
+  {id:"gsec",      name:"Google Online Security", kind:"research", on:false,
+   url:"https://security.googleblog.com/feeds/posts/default", site:"https://security.googleblog.com",
+   note:"Includes hybrid key exchange rollout in Chrome"},
+  {id:"cloudflare", name:"Cloudflare Blog", kind:"research", on:false,
+   url:"https://blog.cloudflare.com/rss/", site:"https://blog.cloudflare.com",
+   note:"Detailed posts on deploying post-quantum TLS at scale"},
+  {id:"tob",       name:"Trail of Bits", kind:"research", on:false,
+   url:"https://blog.trailofbits.com/feed/", site:"https://blog.trailofbits.com",
+   note:"Cryptography engineering and audit findings"},
+  {id:"troyhunt",  name:"Troy Hunt", kind:"analysis", on:false,
+   url:"https://www.troyhunt.com/rss/", site:"https://www.troyhunt.com",
+   note:"Breach data handling, from Have I Been Pwned"},
+
+  // --- vendor threat intel ---
+  {id:"talos",     name:"Cisco Talos", kind:"vendor", on:false,
+   url:"https://blog.talosintelligence.com/rss/", site:"https://blog.talosintelligence.com",
+   note:"Malware and intrusion analysis"},
+  {id:"unit42",    name:"Unit 42", kind:"vendor", on:false,
+   url:"https://unit42.paloaltonetworks.com/feed/", site:"https://unit42.paloaltonetworks.com",
+   note:"Threat actor tracking and incident research"},
+  {id:"mssec",     name:"Microsoft Security Blog", kind:"vendor", on:false,
+   url:"https://www.microsoft.com/en-us/security/blog/feed/", site:"https://www.microsoft.com/en-us/security/blog/",
+   note:"Threat intelligence across Microsoft estates"},
+  {id:"sophos",    name:"Sophos News", kind:"vendor", on:false,
+   url:"https://news.sophos.com/en-us/feed/", site:"https://news.sophos.com",
+   note:"Ransomware case studies and telemetry"},
+  {id:"crowdstrike", name:"CrowdStrike Blog", kind:"vendor", on:false,
+   url:"https://www.crowdstrike.com/blog/feed/", site:"https://www.crowdstrike.com/blog/",
+   note:"Adversary tracking and endpoint research"}
+];
+
+/* =====================================================================
+   2. Subject classification
+   ===================================================================== */
+var TOPICS = [
+  {id:"quantum", label:"Quantum & PQC", rank:1, re:/\b(post[- ]?quantum|quantum[- ]?safe|quantum[- ]?resistant|quantum comput\w*|pqc|ml-kem|ml-dsa|slh-dsa|kyber|crystals|dilithium|falcon|sphincs|hqc|classic mceliece|bike|frodo|lattice[- ]?based|isogeny|sidh|csidh|fips\s?20[345]|q[- ]?day|crypt(?:o|ographic)[- ]?agility|harvest now,? decrypt later|shor'?s algorithm|grover'?s algorithm|quantum key distribution|\bqkd\b)/i},
+  {id:"exploit", label:"Exploits & CVEs", rank:2, re:/\b(cve-\d{4}-\d{4,7}|zero[- ]?day|0[- ]?day|actively exploited|exploitation|exploited in the wild|proof[- ]of[- ]concept|\bpoc\b|remote code execution|\brce\b|privilege escalation|authentication bypass|sql injection|buffer overflow|use[- ]after[- ]free|patch tuesday|out[- ]of[- ]band patch|known exploited vulnerabilit|kev catalog|emergency directive|critical vulnerabilit|security advisory|unauthenticated)/i},
+  {id:"breach",  label:"Data breaches", rank:3, re:/\b(data breach|breached|data leak|leaked database|exposed database|data exfiltration|exfiltrated (?:data|records|files|emails|information)|records (?:were )?(?:exposed|stolen|leaked)|customer data|personal information (?:was )?(?:exposed|stolen)|credential (?:stuffing|dump)|unauthori[sz]ed access to|third[- ]party breach|supply[- ]chain compromise|stolen data|dark web (?:leak|listing))/i},
+  {id:"ransom",  label:"Ransomware", rank:4, re:/\b(ransomware|ransom note|double extortion|extortion (?:group|gang|site)|leak site|lockbit|clop|cl0p|blackcat|alphv|akira|rhysida|play ransomware|qilin|hunters international|encrypt(?:ed|ing) (?:files|systems)|initial access broker)/i},
+  {id:"ai",      label:"AI", rank:5, re:/\b(artificial intelligence|machine learning|large language model|\bllm\b|\bllms\b|generative ai|\bgen ?ai\b|prompt injection|jailbreak\w* (?:a |an |the )?(?:model|llm|ai)|model poisoning|training data (?:poison|leak)|deepfake|ai[- ]?(?:agent|assistant|powered|driven|generated)|agentic|copilot|chatgpt|openai|anthropic|claude|gemini|mcp server)/i},
+  {id:"policy",  label:"Policy & standards", rank:6, re:/\b(regulation|regulatory|legislat\w*|directive|\bnis2\b|\bgdpr\b|\bdora\b|\bhipaa\b|\bpipeda\b|executive order|sanction\w*|indict\w*|\bsec\b disclosure|compliance deadline|standardi[sz]ation|draft standard|public comment|framework (?:update|release)|national (?:cyber )?strategy|procurement|mandate)/i}
+];
+var TOPIC_BY_ID = {};
+TOPICS.forEach(function(t){ TOPIC_BY_ID[t.id] = t; });
+
+/* Source groups, in the order they appear in the Sources column.
+   Government streams lead, Canada first, then the United States. */
+var GROUPS = [
+  {id:"gov-ca",   label:"Government of Canada"},
+  {id:"gov-us",   label:"United States federal"},
+  {id:"gov-intl", label:"Other national agencies"},
+  {id:"custom",   label:"Your own feeds"},
+  {id:"report",   label:"Reporting"},
+  {id:"research", label:"Research and analysis"},
+  {id:"vendor",   label:"Vendor threat intelligence"}
+];
+function groupOf(s){
+  if(s.custom) return "custom";
+  if(s.gov) return s.region === "ca" ? "gov-ca" : (s.region === "us" ? "gov-us" : "gov-intl");
+  if(s.kind === "reporting") return "report";
+  if(s.kind === "vendor") return "vendor";
+  return "research";
+}
+function groupSources(list){
+  var out = [];
+  GROUPS.forEach(function(g){
+    var members = list.filter(function(s){ return groupOf(s) === g.id; });
+    if(members.length) out.push({label:g.label, members:members});
+  });
+  return out;
+}
+
+/* =====================================================================
+   3. Storage
+   ===================================================================== */
+var K = "watchfloor.v1.";
+function load(key, fallback){
+  try{
+    var raw = localStorage.getItem(K + key);
+    if(raw === null) return fallback;
+    return JSON.parse(raw);
+  }catch(e){ return fallback; }
+}
+function save(key, value){
+  try{ localStorage.setItem(K + key, JSON.stringify(value)); }
+  catch(e){ /* storage full or blocked; the app still works for this session */ }
+}
+
+var S = {
+  sources:   load("sources", null),
+  bookmarks: load("bookmarks", []),
+  seen:      load("seen", []),
+  pollMin:   load("pollMin", 30),
+  proxy:     load("proxy", ""),
+  theme:     load("theme", "auto"),
+  cache:     load("cache", []),
+  lastCheck: load("lastCheck", 0),
+  view:      "feed",
+  topics:    [],
+  sourceId:  null,
+  query:     "",
+  limit:     40,
+  items:     [],
+  status:    {},          // sourceId -> {state, at, n, err}
+  busy:      false
+};
+
+/* Merge the catalogue with any saved state so new built-in sources appear
+   on upgrade without wiping what the reader has already chosen. */
+(function initSources(){
+  var saved = S.sources;
+  var firstRun = !Array.isArray(saved);
+  var byId = {};
+  if(!firstRun) saved.forEach(function(s){ byId[s.id] = s; });
+
+  var merged = CATALOGUE.map(function(c){
+    var prev = byId[c.id];
+    var copy = {};
+    for(var k in c) copy[k] = c[k];
+    // on a first visit, honour the catalogue defaults; afterwards a source the
+    // reader has never seen waits in Suggested rather than following itself
+    copy.following = prev ? !!prev.following : (firstRun ? !!c.on : false);
+    delete copy.on;
+    copy.custom = false;
+    delete byId[c.id];
+    return copy;
+  });
+  // keep anything the reader added themselves
+  for(var id in byId){
+    var s = byId[id];
+    if(s && s.custom) merged.push(s);
+  }
+  S.sources = merged;
+})();
+
+var seenSet = {};
+S.seen.forEach(function(id){ seenSet[id] = 1; });
+var bookmarkSet = {};
+S.bookmarks.forEach(function(b){ bookmarkSet[b.id] = 1; });
+
+/* =====================================================================
+   4. Small helpers
+   ===================================================================== */
+function esc(s){
+  return String(s == null ? "" : s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+function safeUrl(u){
+  try{
+    var p = new URL(String(u), location.href);
+    if(p.protocol === "http:" || p.protocol === "https:") return p.href;
+  }catch(e){}
+  return "";
+}
+function stripTags(html){
+  if(!html) return "";
+  try{
+    var d = new DOMParser().parseFromString(String(html), "text/html");
+    return (d.body.textContent || "").replace(/\s+/g," ").trim();
+  }catch(e){
+    return String(html).replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim();
+  }
+}
+function clip(s, n){
+  s = String(s || "");
+  if(s.length <= n) return s;
+  var cut = s.slice(0, n);
+  var sp = cut.lastIndexOf(" ");
+  if(sp > n * 0.6) cut = cut.slice(0, sp);
+  return cut + "…";
+}
+function ago(ts){
+  if(!ts) return "";
+  var d = Math.max(0, Date.now() - ts), m = Math.round(d / 60000);
+  if(m < 1) return "just now";
+  if(m < 60) return m + "m";
+  var h = Math.round(m / 60);
+  if(h < 24) return h + "h";
+  var days = Math.round(h / 24);
+  if(days < 30) return days + "d";
+  return new Date(ts).toLocaleDateString(undefined, {month:"short", day:"numeric", year:"numeric"});
+}
+function agoWords(ts){
+  if(!ts) return "not yet";
+  var m = Math.round((Date.now() - ts) / 60000);
+  if(m < 1) return "moments ago";
+  if(m === 1) return "a minute ago";
+  if(m < 60) return m + " minutes ago";
+  var h = Math.round(m / 60);
+  return h === 1 ? "an hour ago" : h + " hours ago";
+}
+function byId(id){ return document.getElementById(id); }
+function sourceById(id){
+  for(var i = 0; i < S.sources.length; i++) if(S.sources[i].id === id) return S.sources[i];
+  return null;
+}
+function hostOf(u){
+  try{ return new URL(u).hostname.replace(/^www\./,""); }catch(e){ return ""; }
+}
+
+/* =====================================================================
+   5. Fetching and parsing feeds
+   ===================================================================== */
+var RELAYS = [
+  function(u){ return u; },                                                            // direct, works when the feed sets CORS headers
+  function(u){ return "https://api.codetabs.com/v1/proxy/?quest=" + encodeURIComponent(u); },
+  function(u){ return "https://api.allorigins.win/raw?url=" + encodeURIComponent(u); },
+  function(u){ return "https://corsproxy.io/?url=" + encodeURIComponent(u); }
+];
+function relays(){
+  var list = RELAYS.slice();
+  var custom = (S.proxy || "").trim();
+  if(custom && custom.indexOf("{url}") !== -1){
+    list.unshift(function(u){ return custom.replace("{url}", encodeURIComponent(u)); });
+  }
+  return list;
+}
+
+function getText(url, ms){
+  var ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
+  var timer = setTimeout(function(){ if(ctl) ctl.abort(); }, ms || 14000);
+  var opts = {redirect:"follow"};
+  if(ctl) opts.signal = ctl.signal;
+  return fetch(url, opts).then(function(r){
+    if(!r.ok) throw new Error("HTTP " + r.status);
+    return r.text();
+  }).then(function(t){
+    clearTimeout(timer);
+    return t;
+  }, function(e){
+    clearTimeout(timer);
+    throw e;
+  });
+}
+
+/* child element text by local name, namespace-agnostic */
+function kid(el, names){
+  var want = names.map(function(n){ return n.toLowerCase(); });
+  var c = el.children;
+  for(var i = 0; i < c.length; i++){
+    var ln = (c[i].localName || c[i].nodeName || "").toLowerCase();
+    var full = (c[i].nodeName || "").toLowerCase();
+    if(want.indexOf(ln) !== -1 || want.indexOf(full) !== -1){
+      var v = (c[i].textContent || "").trim();
+      if(v) return v;
+    }
+  }
+  return "";
+}
+function kidEls(el, name){
+  var out = [], c = el.children, want = name.toLowerCase();
+  for(var i = 0; i < c.length; i++){
+    var ln = (c[i].localName || c[i].nodeName || "").toLowerCase();
+    if(ln === want) out.push(c[i]);
+  }
+  return out;
+}
+function entryLink(el){
+  var direct = kid(el, ["link"]);
+  if(direct && /^https?:/i.test(direct)) return direct;
+  var links = kidEls(el, "link"), alt = "", any = "";
+  for(var i = 0; i < links.length; i++){
+    var href = links[i].getAttribute("href");
+    if(!href) continue;
+    var rel = (links[i].getAttribute("rel") || "alternate").toLowerCase();
+    if(rel === "alternate" && !alt) alt = href;
+    if(!any) any = href;
+  }
+  if(alt) return alt;
+  if(any) return any;
+  var guid = kid(el, ["guid","id"]);
+  return /^https?:/i.test(guid) ? guid : "";
+}
+function parseDate(s){
+  if(!s) return 0;
+  var t = Date.parse(s);
+  if(!isNaN(t)) return t;
+  t = Date.parse(String(s).replace(/(\d)(st|nd|rd|th)/g, "$1"));
+  return isNaN(t) ? 0 : t;
+}
+
+function parseFeed(text, src){
+  text = String(text).replace(/^\uFEFF/, "").trim();
+  if(!text) throw new Error("empty response");
+  // some relays hand back a JSON envelope
+  if(text.charAt(0) === "{"){
+    try{
+      var j = JSON.parse(text);
+      text = j.contents || j.body || j.data || text;
+    }catch(e){}
+  }
+  var doc = new DOMParser().parseFromString(text, "text/xml");
+  if(doc.getElementsByTagName("parsererror").length){
+    doc = new DOMParser().parseFromString(text, "text/html");
+  }
+  var root = doc.documentElement;
+  if(!root) throw new Error("could not read the feed");
+
+  var feedTitle = "";
+  var chan = doc.getElementsByTagName("channel")[0];
+  if(chan) feedTitle = kid(chan, ["title"]);
+  if(!feedTitle && root) feedTitle = kid(root, ["title"]);
+
+  var nodes = [];
+  var tags = ["item","entry"];
+  for(var t = 0; t < tags.length; t++){
+    var found = doc.getElementsByTagName(tags[t]);
+    for(var i = 0; i < found.length; i++) nodes.push(found[i]);
+    if(nodes.length) break;
+  }
+  if(!nodes.length){
+    var all = doc.getElementsByTagName("*");
+    for(var a = 0; a < all.length; a++){
+      var ln = (all[a].localName || "").toLowerCase();
+      if(ln === "item" || ln === "entry") nodes.push(all[a]);
+    }
+  }
+  if(!nodes.length) throw new Error("no articles in the feed");
+
+  var out = [];
+  for(var n = 0; n < nodes.length && n < 60; n++){
+    var el = nodes[n];
+    var title = stripTags(kid(el, ["title"]));
+    var link = safeUrl(entryLink(el));
+    if(!title && !link) continue;
+    var summary = stripTags(
+      kid(el, ["description","summary","content","content:encoded","encoded"])
+    );
+    var when = parseDate(kid(el, ["pubdate","published","updated","date","dc:date","issued","created"]));
+    var raw = kid(el, ["guid","id"]) || link || title;
+    var item = {
+      id: src.id + "::" + raw,
+      title: title || "Untitled entry",
+      link: link,
+      sourceId: src.id,
+      sourceName: src.name,
+      kind: src.kind || "reporting",
+      at: when,
+      desc: clip(summary, 260),
+      cves: []
+    };
+    var cm = (title + " " + summary).match(/CVE-\d{4}-\d{4,7}/gi) || [];
+    var uniq = {};
+    cm.forEach(function(c){ uniq[c.toUpperCase()] = 1; });
+    item.cves = Object.keys(uniq).slice(0, 3);
+    item.topics = classify(item);
+    out.push(item);
+  }
+  return {items: out, title: stripTags(feedTitle)};
+}
+
+function classify(item){
+  var hay = item.title + " " + item.desc;
+  var hits = [];
+  TOPICS.forEach(function(t){ if(t.re.test(hay)) hits.push(t.id); });
+  return hits;
+}
+
+function fetchSource(src){
+  var chain = relays(), i = 0, lastErr = "";
+  function attempt(){
+    if(i >= chain.length) return Promise.reject(new Error(lastErr || "could not reach the feed"));
+    var target = chain[i++](src.url);
+    return getText(target).then(function(text){
+      return parseFeed(text, src);
+    }).catch(function(e){
+      lastErr = (e && e.message) || "failed";
+      return attempt();
+    });
+  }
+  return attempt();
+}
+
+function refresh(){
+  if(S.busy) return Promise.resolve();
+  var list = S.sources.filter(function(s){ return s.following; });
+  if(!list.length){ render(); return Promise.resolve(); }
+
+  S.busy = true;
+  setBusy(true);
+  list.forEach(function(s){ S.status[s.id] = {state:"wait"}; });
+  renderSources();
+
+  var collected = [], queue = list.slice();
+  function worker(){
+    if(!queue.length) return Promise.resolve();
+    var src = queue.shift();
+    return fetchSource(src).then(function(res){
+      S.status[src.id] = {state:"ok", at:Date.now(), n:res.items.length};
+      collected = collected.concat(res.items);
+    }, function(e){
+      S.status[src.id] = {state:"bad", at:Date.now(), err:(e && e.message) || "unreachable"};
+    }).then(function(){
+      renderSources();
+      return worker();
+    });
+  }
+  var workers = [];
+  for(var w = 0; w < 4; w++) workers.push(worker());
+
+  return Promise.all(workers).then(function(){
+    mergeItems(collected);
+    S.lastCheck = Date.now();
+    save("lastCheck", S.lastCheck);
+    S.busy = false;
+    setBusy(false);
+    render();
+    resetTick();
+  });
+}
+
+function mergeItems(incoming){
+  var byKey = {};
+  var keep = S.items.length ? S.items : (S.cache || []);
+  keep.concat(incoming).forEach(function(it){
+    var key = it.link || it.id;
+    var prev = byKey[key];
+    if(!prev || (it.at || 0) > (prev.at || 0)) byKey[key] = it;
+  });
+  var all = [];
+  var cutoff = Date.now() - 1000 * 60 * 60 * 24 * 60;
+  for(var k in byKey){
+    var it = byKey[k];
+    if(it.at && it.at < cutoff) continue;
+    // drop items whose source is gone
+    if(!sourceById(it.sourceId)) continue;
+    all.push(it);
+  }
+  all.sort(function(a, b){ return (b.at || 0) - (a.at || 0); });
+  S.items = all.slice(0, 700);
+  S.cache = S.items.slice(0, 400);
+  save("cache", S.cache);
+}
+
+/* =====================================================================
+   6. Filtering
+   ===================================================================== */
+function visible(){
+  var q = S.query.trim().toLowerCase();
+  return S.items.filter(function(it){
+    if(S.sourceId && it.sourceId !== S.sourceId) return false;
+    if(S.topics.length){
+      var hit = false;
+      for(var i = 0; i < S.topics.length; i++){
+        if(it.topics.indexOf(S.topics[i]) !== -1){ hit = true; break; }
+      }
+      if(!hit) return false;
+    }
+    if(q && (it.title + " " + it.desc).toLowerCase().indexOf(q) === -1) return false;
+    return true;
+  });
+}
+function topicCounts(){
+  var c = {all:S.items.length};
+  TOPICS.forEach(function(t){ c[t.id] = 0; });
+  S.items.forEach(function(it){
+    it.topics.forEach(function(id){ if(c[id] !== undefined) c[id]++; });
+  });
+  return c;
+}
+function bandOf(it){
+  var best = null;
+  it.topics.forEach(function(id){
+    var t = TOPIC_BY_ID[id];
+    if(t && (!best || t.rank < best.rank)) best = t;
+  });
+  return best ? best.id : "";
+}
+
+/* =====================================================================
+   7. Rendering
+   ===================================================================== */
+function setBusy(on){
+  var b = byId("check"), ico = byId("check-ico"), lab = byId("check-label");
+  b.disabled = on;
+  lab.textContent = on ? "Checking…" : "Check now";
+  if(on) ico.classList.add("spin"); else ico.classList.remove("spin");
+
+  var mini = byId("check-mini"), miniIco = byId("check-mini-ico");
+  if(mini){
+    mini.disabled = on;
+    mini.setAttribute("title", on ? "Checking…" : "Check for new articles");
+    if(on) miniIco.classList.add("spin"); else miniIco.classList.remove("spin");
+  }
+}
+
+function render(){
+  document.body.setAttribute("data-view", S.view);
+  byId("col-title").textContent = S.view === "bookmarks" ? "Saved" : "Feed";
+  Array.prototype.forEach.call(document.querySelectorAll("[data-nav]"), function(b){
+    if(b.getAttribute("data-nav") === S.view) b.setAttribute("aria-current", "page");
+    else b.removeAttribute("aria-current");
+  });
+  var following = S.sources.filter(function(s){ return s.following; });
+  byId("nav-feed-n").textContent = S.items.length ? String(S.items.length) : "";
+  byId("nav-saved-n").textContent = S.bookmarks.length ? String(S.bookmarks.length) : "";
+  byId("tab-saved-n").textContent = S.bookmarks.length ? String(S.bookmarks.length) : "";
+  byId("nav-src-n").textContent = String(following.length);
+  byId("following-n").textContent = String(following.length);
+
+  renderStatus(following.length);
+  renderChips();
+  renderNote();
+  renderItems();
+  renderSources();
+  renderSuggested();
+}
+
+function renderStatus(nFollowing){
+  var el = byId("status");
+  if(S.view === "bookmarks"){
+    el.innerHTML = S.bookmarks.length
+      ? "<b>" + S.bookmarks.length + "</b> saved " + (S.bookmarks.length === 1 ? "article" : "articles") + ", newest first."
+      : "Nothing saved yet.";
+    return;
+  }
+  var bits = [];
+  bits.push("Checked " + esc(agoWords(S.lastCheck)) + ".");
+  bits.push("<b>" + nFollowing + "</b> " + (nFollowing === 1 ? "source" : "sources") + " followed.");
+  var bad = 0;
+  for(var id in S.status) if(S.status[id].state === "bad") bad++;
+  if(bad) bits.push("<b>" + bad + "</b> not responding.");
+  if(S.pollMin > 0) bits.push('<span id="next-check"></span>');
+  el.innerHTML = bits.join(" ");
+  paintNext();
+}
+
+function renderChips(){
+  var c = topicCounts(), wrap = byId("chips"), html = "";
+  html += '<button class="chip" type="button" data-topic="all" aria-pressed="' +
+          (S.topics.length ? "false" : "true") + '">Everything <span class="n">' + c.all + "</span></button>";
+  TOPICS.forEach(function(t){
+    html += '<button class="chip" type="button" data-topic="' + t.id + '" aria-pressed="' +
+            (S.topics.indexOf(t.id) !== -1 ? "true" : "false") + '">' +
+            esc(t.label) + ' <span class="n">' + (c[t.id] || 0) + "</span></button>";
+  });
+  wrap.innerHTML = html;
+}
+
+function renderNote(){
+  var slot = byId("fnote-slot");
+  if(!S.sourceId && !S.query){ slot.innerHTML = ""; return; }
+  var parts = [];
+  if(S.sourceId){
+    var s = sourceById(S.sourceId);
+    parts.push("Showing " + esc(s ? s.name : "one source") + " only");
+  }
+  if(S.query) parts.push('matching "' + esc(S.query) + '"');
+  slot.innerHTML = '<div class="fnote"><span>' + parts.join(", ") +
+                   '</span><button type="button" id="clear-filter">Clear</button></div>';
+  byId("clear-filter").addEventListener("click", function(){
+    S.sourceId = null; S.query = ""; byId("search").value = ""; S.limit = 40; render();
+  });
+}
+
+function itemHtml(it, opts){
+  var band = bandOf(it);
+  var isNew = !seenSet[it.id] && S.lastCheck > 0;
+  var saved = !!bookmarkSet[it.id];
+  var h = '<article class="item" data-band="' + esc(band) + '" data-id="' + esc(it.id) + '"' +
+          (it.link ? ' data-link="' + esc(it.link) + '"' : "") + ' tabindex="0" role="link">';
+  h += '<div class="imeta">';
+  if(isNew && !opts.saved) h += '<span class="inew" title="New since your last check"></span>';
+  h += '<button class="isrc" type="button" data-src="' + esc(it.sourceId) + '">' + esc(it.sourceName) + "</button>";
+  h += '<span class="ikind">' + esc(it.kind) + "</span>";
+  h += '<span class="itime" title="' + esc(it.at ? new Date(it.at).toLocaleString() : "") + '">' +
+       esc(it.at ? ago(it.at) : "undated") + "</span>";
+  h += "</div>";
+  h += '<h3 class="ititle">' + esc(it.title) + "</h3>";
+  if(it.desc) h += '<p class="idesc">' + esc(it.desc) + "</p>";
+
+  var foot = "";
+  it.topics.slice(0, 3).forEach(function(id){
+    var t = TOPIC_BY_ID[id];
+    if(t) foot += '<span class="tag" data-topic="' + id + '">' + esc(t.label) + "</span>";
+  });
+  it.cves.forEach(function(c){ foot += '<span class="cve">' + esc(c) + "</span>"; });
+  foot += '<button class="save" type="button" data-save="' + esc(it.id) + '" aria-pressed="' + (saved ? "true" : "false") + '">' +
+          '<svg viewBox="0 0 24 24" fill="' + (saved ? "currentColor" : "none") + '" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3h12v18l-6-4.5L6 21z"/></svg>' +
+          (saved ? "Saved" : "Save") + "</button>";
+  h += '<div class="ifoot">' + foot + "</div>";
+  h += "</article>";
+  return h;
+}
+
+function renderItems(){
+  var box = byId("items");
+
+  if(S.view === "bookmarks"){
+    if(!S.bookmarks.length){
+      box.innerHTML = '<div class="empty"><h2>Nothing saved yet</h2>' +
+        "<p>Save an article from the feed and it waits here until you come back to it. " +
+        "Saved articles are kept in this browser and can be exported as a list of links.</p>" +
+        '<button class="check" type="button" data-nav="feed">Back to the feed</button></div>';
+      wire(box);
+      return;
+    }
+    var list = S.bookmarks.slice().sort(function(a, b){ return (b.savedAt || 0) - (a.savedAt || 0); });
+    var html = list.map(function(it){ return itemHtml(it, {saved:true}); }).join("");
+    html += '<div class="empty" style="padding:24px"><div class="rowbtns" style="justify-content:center">' +
+            '<button class="btn btn-quiet" id="save-md" type="button">Copy as Markdown</button>' +
+            '<button class="btn btn-quiet" id="save-json" type="button">Download as JSON</button>' +
+            '<button class="btn btn-quiet" id="save-clear" type="button">Clear all saved</button>' +
+            '</div><p class="msg info" id="save-msg" style="text-align:center"></p></div>';
+    box.innerHTML = html;
+    wire(box);
+    byId("save-md").addEventListener("click", copyMarkdown);
+    byId("save-json").addEventListener("click", downloadBookmarks);
+    byId("save-clear").addEventListener("click", clearBookmarks);
+    return;
+  }
+
+  var following = S.sources.filter(function(s){ return s.following; });
+  if(!following.length){
+    box.innerHTML = '<div class="empty"><h2>No sources followed</h2>' +
+      "<p>Pick a few from the suggested list, or paste the address of any RSS or Atom feed you already read.</p>" +
+      '<button class="check" type="button" data-nav="sources">Choose sources</button></div>';
+    wire(box);
+    return;
+  }
+
+  var rows = visible();
+  if(!rows.length){
+    var why, fix;
+    if(!S.items.length){
+      why = S.lastCheck ? "Nothing came back" : "The feed is empty until the first check";
+      fix = S.lastCheck
+        ? "Every followed source failed to respond. Public relays rate-limit hard; try again in a minute, or set your own relay under Sources."
+        : "Check now to pull the latest from your sources.";
+    }else{
+      why = "No matches";
+      fix = "Nothing in the current " + S.items.length + " articles matches these filters. Widen the subject filter or clear the search.";
+    }
+    box.innerHTML = '<div class="empty"><h2>' + esc(why) + "</h2><p>" + esc(fix) + "</p>" +
+      '<button class="check" type="button" id="empty-check">Check now</button></div>';
+    byId("empty-check").addEventListener("click", function(){ refresh(); });
+    wire(box);
+    return;
+  }
+
+  var shown = rows.slice(0, S.limit);
+  var html = shown.map(function(it){ return itemHtml(it, {}); }).join("");
+  if(rows.length > S.limit){
+    html += '<button class="loadmore" type="button" id="more">Show ' +
+            Math.min(40, rows.length - S.limit) + " more of " + rows.length + "</button>";
+  }
+  box.innerHTML = html;
+  wire(box);
+  var more = byId("more");
+  if(more) more.addEventListener("click", function(){ S.limit += 40; renderItems(); });
+}
+
+function wire(box){
+  Array.prototype.forEach.call(box.querySelectorAll(".item"), function(el){
+    el.addEventListener("click", function(ev){
+      if(ev.target.closest("button")) return;
+      open(el);
+    });
+    el.addEventListener("keydown", function(ev){
+      if(ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); open(el); }
+    });
+  });
+  Array.prototype.forEach.call(box.querySelectorAll("[data-save]"), function(b){
+    b.addEventListener("click", function(ev){
+      ev.stopPropagation();
+      toggleSave(b.getAttribute("data-save"));
+    });
+  });
+  Array.prototype.forEach.call(box.querySelectorAll("[data-src]"), function(b){
+    b.addEventListener("click", function(ev){
+      ev.stopPropagation();
+      S.sourceId = b.getAttribute("data-src");
+      S.view = "feed"; S.limit = 40;
+      render();
+      window.scrollTo({top:0, behavior:"smooth"});
+    });
+  });
+  Array.prototype.forEach.call(box.querySelectorAll("[data-nav]"), function(b){
+    b.addEventListener("click", function(){ go(b.getAttribute("data-nav")); });
+  });
+}
+
+function open(el){
+  var url = el.getAttribute("data-link");
+  var id = el.getAttribute("data-id");
+  if(id && !seenSet[id]){
+    seenSet[id] = 1;
+    S.seen.push(id);
+    if(S.seen.length > 1500) S.seen = S.seen.slice(-1200);
+    save("seen", S.seen);
+    var dot = el.querySelector(".inew");
+    if(dot) dot.remove();
+  }
+  if(url) window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function toggleSave(id){
+  var i = -1;
+  for(var k = 0; k < S.bookmarks.length; k++) if(S.bookmarks[k].id === id){ i = k; break; }
+  if(i >= 0){
+    S.bookmarks.splice(i, 1);
+    delete bookmarkSet[id];
+  }else{
+    var found = null;
+    for(var j = 0; j < S.items.length; j++) if(S.items[j].id === id){ found = S.items[j]; break; }
+    if(!found) return;
+    var copy = JSON.parse(JSON.stringify(found));
+    copy.savedAt = Date.now();
+    S.bookmarks.push(copy);
+    bookmarkSet[id] = 1;
+  }
+  save("bookmarks", S.bookmarks);
+  render();
+}
+
+function copyMarkdown(){
+  var lines = S.bookmarks.slice().sort(function(a, b){ return (b.savedAt || 0) - (a.savedAt || 0); })
+    .map(function(b){
+      var d = b.at ? new Date(b.at).toISOString().slice(0, 10) : "undated";
+      return "- [" + b.title.replace(/[\[\]]/g, "") + "](" + b.link + ") — " + b.sourceName + ", " + d;
+    });
+  var text = "# Saved from Watchfloor\n\n" + lines.join("\n") + "\n";
+  var msg = byId("save-msg");
+  function done(ok){
+    msg.className = "msg " + (ok ? "ok" : "bad");
+    msg.textContent = ok ? "Copied " + lines.length + " links to the clipboard." : "Could not reach the clipboard. Use the JSON download instead.";
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){ done(true); }, function(){ done(false); });
+  }else done(false);
+}
+function downloadBookmarks(){
+  download("watchfloor-saved.json", JSON.stringify(S.bookmarks, null, 2));
+}
+function clearBookmarks(){
+  if(!window.confirm("Remove all " + S.bookmarks.length + " saved articles? This cannot be undone.")) return;
+  S.bookmarks = []; bookmarkSet = {};
+  save("bookmarks", S.bookmarks);
+  render();
+}
+function download(name, text){
+  var blob = new Blob([text], {type:"application/json"});
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
+function statusBits(id){
+  var st = S.status[id];
+  if(!st) return '<span class="srcstat"><i class="dot"></i>not checked yet</span>';
+  if(st.state === "wait") return '<span class="srcstat"><i class="dot wait"></i>checking…</span>';
+  if(st.state === "ok"){
+    var when = ago(st.at);
+    if(when !== "just now" && /^\d+[mhd]$/.test(when)) when = when + " ago";
+    return '<span class="srcstat"><i class="dot ok"></i>' + st.n + " articles, " + esc(when) + "</span>";
+  }
+  return '<span class="srcstat"><i class="dot bad"></i>' + esc(clip(st.err || "unreachable", 48)) + "</span>";
+}
+
+function renderSources(){
+  var ul = byId("following");
+  var list = S.sources.filter(function(s){ return s.following; });
+  if(!list.length){
+    ul.innerHTML = '<li><span class="srcmain"><span class="srcnote">Nothing followed yet. Pick some from the suggested list below.</span></span></li>';
+    return;
+  }
+  var html = "";
+  groupSources(list).forEach(function(g){
+    html += '<li class="ghdr">' + esc(g.label) + "</li>";
+    html += g.members.map(function(s){
+      return "<li>" +
+        '<span class="srcmain">' +
+          '<button class="srcname" type="button" data-only="' + esc(s.id) + '">' + esc(s.name) + "</button>" +
+          '<span class="srcnote">' + esc(hostOf(s.url) || s.kind) + "</span>" +
+          statusBits(s.id) +
+        "</span>" +
+        '<button class="follow" type="button" data-on="true" data-toggle="' + esc(s.id) + '">Following</button>' +
+        (s.custom ? '<button class="remove" type="button" data-del="' + esc(s.id) + '" title="Remove this feed" aria-label="Remove ' + esc(s.name) + '">&times;</button>' : "") +
+      "</li>";
+    }).join("");
+  });
+  ul.innerHTML = html;
+  wireSourceList(ul);
+}
+
+function renderSuggested(){
+  var ul = byId("suggested");
+  var list = S.sources.filter(function(s){ return !s.following; });
+  if(!list.length){
+    ul.innerHTML = '<li><span class="srcmain"><span class="srcnote">You are following everything in the catalogue. Add your own feeds above.</span></span></li>';
+    return;
+  }
+  var html = "";
+  groupSources(list).forEach(function(g){
+    html += '<li class="ghdr">' + esc(g.label) + "</li>";
+    html += g.members.map(function(s){
+      return "<li>" +
+        '<span class="srcmain">' +
+          '<a class="srcname" href="' + esc(safeUrl(s.site) || safeUrl(s.url)) + '" target="_blank" rel="noopener noreferrer">' + esc(s.name) + "</a>" +
+          '<span class="srcnote">' + esc(s.note || hostOf(s.url)) + "</span>" +
+        "</span>" +
+        '<button class="follow" type="button" data-on="false" data-toggle="' + esc(s.id) + '">Follow</button>' +
+        (s.custom ? '<button class="remove" type="button" data-del="' + esc(s.id) + '" title="Remove this feed" aria-label="Remove ' + esc(s.name) + '">&times;</button>' : "") +
+      "</li>";
+    }).join("");
+  });
+  ul.innerHTML = html;
+  wireSourceList(ul);
+}
+
+function wireSourceList(ul){
+  Array.prototype.forEach.call(ul.querySelectorAll("[data-toggle]"), function(b){
+    b.addEventListener("click", function(){
+      var s = sourceById(b.getAttribute("data-toggle"));
+      if(!s) return;
+      s.following = !s.following;
+      persistSources();
+      if(s.following) fetchOne(s); else { pruneSource(s.id); render(); }
+    });
+  });
+  Array.prototype.forEach.call(ul.querySelectorAll("[data-del]"), function(b){
+    b.addEventListener("click", function(){
+      var id = b.getAttribute("data-del"), s = sourceById(id);
+      if(!s) return;
+      if(!window.confirm("Remove " + s.name + " from your sources?")) return;
+      S.sources = S.sources.filter(function(x){ return x.id !== id; });
+      persistSources();
+      pruneSource(id);
+      render();
+    });
+  });
+  Array.prototype.forEach.call(ul.querySelectorAll("[data-only]"), function(b){
+    b.addEventListener("click", function(){
+      S.sourceId = b.getAttribute("data-only");
+      S.view = "feed"; S.limit = 40;
+      render();
+      window.scrollTo({top:0, behavior:"smooth"});
+    });
+  });
+}
+
+function persistSources(){
+  save("sources", S.sources.map(function(s){
+    return {id:s.id, name:s.name, url:s.url, kind:s.kind, site:s.site, note:s.note,
+            gov:!!s.gov, region:s.region, following:s.following, custom:s.custom};
+  }));
+}
+function pruneSource(id){
+  S.items = S.items.filter(function(it){ return it.sourceId !== id; });
+  S.cache = S.items.slice(0, 400);
+  save("cache", S.cache);
+  delete S.status[id];
+}
+function fetchOne(s){
+  S.status[s.id] = {state:"wait"};
+  renderSources();
+  return fetchSource(s).then(function(res){
+    S.status[s.id] = {state:"ok", at:Date.now(), n:res.items.length};
+    mergeItems(res.items);
+    render();
+  }, function(e){
+    S.status[s.id] = {state:"bad", at:Date.now(), err:(e && e.message) || "unreachable"};
+    render();
+  });
+}
+
+/* =====================================================================
+   8. Adding feeds
+   ===================================================================== */
+function addFeed(follow){
+  var urlIn = byId("add-url"), nameIn = byId("add-name"), msg = byId("add-msg");
+  var url = safeUrl(urlIn.value.trim());
+  if(!url){
+    msg.className = "msg bad";
+    msg.textContent = "That does not look like a web address. It needs to start with http:// or https://";
+    return;
+  }
+  for(var i = 0; i < S.sources.length; i++){
+    if(S.sources[i].url === url){
+      msg.className = "msg info";
+      msg.textContent = S.sources[i].name + " is already in your sources.";
+      return;
+    }
+  }
+  msg.className = "msg info";
+  msg.textContent = "Reading the feed…";
+  byId("add-go").disabled = true;
+  byId("add-test").disabled = true;
+
+  var probe = {id:"custom-" + Date.now().toString(36), name:nameIn.value.trim() || "New feed",
+               url:url, kind:"custom", site:url, note:"Added by you", custom:true, following:false};
+
+  fetchSource(probe).then(function(res){
+    byId("add-go").disabled = false;
+    byId("add-test").disabled = false;
+    var title = nameIn.value.trim() || res.title || hostOf(url) || "New feed";
+    if(!follow){
+      msg.className = "msg ok";
+      msg.textContent = "Works. " + res.items.length + " articles from " + title + ". Press Add and follow to keep it.";
+      return;
+    }
+    probe.name = title;
+    probe.following = true;
+    S.sources.push(probe);
+    persistSources();
+    S.status[probe.id] = {state:"ok", at:Date.now(), n:res.items.length};
+    mergeItems(res.items);
+    urlIn.value = ""; nameIn.value = "";
+    msg.className = "msg ok";
+    msg.textContent = "Following " + title + ", " + res.items.length + " articles added.";
+    render();
+  }, function(e){
+    byId("add-go").disabled = false;
+    byId("add-test").disabled = false;
+    msg.className = "msg bad";
+    msg.textContent = "Could not read a feed there — " + ((e && e.message) || "no response") +
+      ". Check the address points at the RSS or Atom file rather than the web page.";
+  });
+}
+
+/* =====================================================================
+   9. Polling
+   ===================================================================== */
+var tickTimer = null;
+function resetTick(){
+  paintNext();
+  paintTick();
+}
+function paintNext(){
+  var el = byId("next-check");
+  if(!el) return;
+  if(!S.pollMin || !S.lastCheck){ el.textContent = ""; return; }
+  var due = S.lastCheck + S.pollMin * 60000;
+  var left = Math.max(0, due - Date.now());
+  var m = Math.floor(left / 60000), s = Math.floor((left % 60000) / 1000);
+  el.textContent = "Next check in " + m + ":" + (s < 10 ? "0" : "") + s + ".";
+}
+function paintTick(){
+  var bar = byId("tick");
+  if(!S.pollMin || !S.lastCheck){ bar.style.width = "0%"; return; }
+  var span = S.pollMin * 60000;
+  var done = Math.min(1, Math.max(0, (Date.now() - S.lastCheck) / span));
+  bar.style.width = (done * 100).toFixed(2) + "%";
+}
+function startClock(){
+  if(tickTimer) clearInterval(tickTimer);
+  tickTimer = setInterval(function(){
+    paintNext();
+    paintTick();
+    if(S.pollMin && !S.busy && S.lastCheck && Date.now() - S.lastCheck >= S.pollMin * 60000){
+      refresh();
+    }
+  }, 1000);
+}
+
+/* =====================================================================
+   10. Theme
+   ===================================================================== */
+function applyTheme(){
+  var t = S.theme;
+  if(t === "auto") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", t);
+  var label = t === "auto" ? "Match system" : (t === "dark" ? "Dark" : "Light");
+  byId("theme-label").textContent = label;
+  var mob = byId("theme-mob");
+  if(mob){
+    mob.setAttribute("title", "Theme: " + label.toLowerCase());
+    mob.setAttribute("aria-label", "Theme: " + label.toLowerCase() + ". Change theme");
+  }
+}
+function cycleTheme(){
+  S.theme = S.theme === "auto" ? "light" : (S.theme === "light" ? "dark" : "auto");
+  save("theme", S.theme);
+  applyTheme();
+}
+
+/* =====================================================================
+   11. Settings import and export
+   ===================================================================== */
+function exportConfig(){
+  download("watchfloor-settings.json", JSON.stringify({
+    version:1,
+    sources:S.sources.map(function(s){
+      return {id:s.id, name:s.name, url:s.url, kind:s.kind, site:s.site, note:s.note,
+              gov:!!s.gov, region:s.region, following:s.following, custom:s.custom};
+    }),
+    bookmarks:S.bookmarks, pollMin:S.pollMin, proxy:S.proxy, theme:S.theme
+  }, null, 2));
+  setMsg("ok", "Settings downloaded.");
+}
+function exportOpml(){
+  var head = '<?xml version="1.0" encoding="UTF-8"?>\n<opml version="1.0">\n<head><title>Watchfloor</title></head>\n<body>\n';
+  var body = S.sources.filter(function(s){ return s.following; }).map(function(s){
+    return '  <outline type="rss" text="' + esc(s.name) + '" title="' + esc(s.name) +
+           '" xmlUrl="' + esc(s.url) + '"' + (s.site ? ' htmlUrl="' + esc(s.site) + '"' : "") + "/>\n";
+  }).join("");
+  var blob = new Blob([head + body + "</body>\n</opml>\n"], {type:"text/xml"});
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "watchfloor.opml";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  setMsg("ok", "OPML downloaded. Any feed reader can import it.");
+}
+function importConfig(file){
+  var r = new FileReader();
+  r.onload = function(){
+    try{
+      var d = JSON.parse(String(r.result));
+      if(Array.isArray(d.sources)){
+        S.sources = d.sources.map(function(s){
+          return {id:s.id, name:s.name, url:s.url, kind:s.kind || "custom", site:s.site,
+                  note:s.note, gov:!!s.gov, region:s.region,
+                  following:!!s.following, custom:!!s.custom};
+        });
+        persistSources();
+      }
+      if(Array.isArray(d.bookmarks)){
+        S.bookmarks = d.bookmarks;
+        bookmarkSet = {};
+        S.bookmarks.forEach(function(b){ bookmarkSet[b.id] = 1; });
+        save("bookmarks", S.bookmarks);
+      }
+      if(typeof d.pollMin === "number"){ S.pollMin = d.pollMin; save("pollMin", S.pollMin); byId("poll").value = String(S.pollMin); }
+      if(typeof d.proxy === "string"){ S.proxy = d.proxy; save("proxy", S.proxy); byId("proxy").value = S.proxy; }
+      if(typeof d.theme === "string"){ S.theme = d.theme; save("theme", S.theme); applyTheme(); }
+      setMsg("ok", "Settings restored. Checking your sources now.");
+      render();
+      refresh();
+    }catch(e){
+      setMsg("bad", "That file could not be read as Watchfloor settings.");
+    }
+  };
+  r.onerror = function(){ setMsg("bad", "The file could not be opened."); };
+  r.readAsText(file);
+}
+function setMsg(kind, text){
+  var m = byId("set-msg");
+  m.className = "msg " + kind;
+  m.textContent = text;
+}
+
+/* =====================================================================
+   12. Navigation and events
+   ===================================================================== */
+function go(view){
+  S.view = view;
+  S.limit = 40;
+  render();
+  window.scrollTo({top:0, behavior:"auto"});
+}
+
+function bind(){
+  Array.prototype.forEach.call(document.querySelectorAll("[data-nav]"), function(b){
+    b.addEventListener("click", function(){ go(b.getAttribute("data-nav")); });
+  });
+  byId("check").addEventListener("click", function(){ refresh(); });
+  byId("check-mini").addEventListener("click", function(){ refresh(); });
+  byId("poll").addEventListener("change", function(e){
+    S.pollMin = parseInt(e.target.value, 10) || 0;
+    save("pollMin", S.pollMin);
+    renderStatus(S.sources.filter(function(s){ return s.following; }).length);
+    resetTick();
+  });
+  var searchTimer = null;
+  byId("search").addEventListener("input", function(e){
+    var v = e.target.value;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(function(){
+      S.query = v; S.limit = 40;
+      renderNote(); renderItems();
+    }, 180);
+  });
+  byId("chips").addEventListener("click", function(ev){
+    var b = ev.target.closest(".chip");
+    if(!b) return;
+    var id = b.getAttribute("data-topic");
+    if(id === "all") S.topics = [];
+    else{
+      var i = S.topics.indexOf(id);
+      if(i >= 0) S.topics.splice(i, 1); else S.topics.push(id);
+    }
+    S.limit = 40;
+    renderChips(); renderItems();
+  });
+  byId("add-go").addEventListener("click", function(){ addFeed(true); });
+  byId("add-test").addEventListener("click", function(){ addFeed(false); });
+  byId("add-url").addEventListener("keydown", function(e){ if(e.key === "Enter") addFeed(true); });
+  byId("proxy-save").addEventListener("click", function(){
+    var v = byId("proxy").value.trim();
+    if(v && v.indexOf("{url}") === -1){
+      setMsg("bad", "Include {url} so the feed address can be slotted in.");
+      return;
+    }
+    S.proxy = v; save("proxy", S.proxy);
+    setMsg("ok", v ? "Relay saved. It will be tried first from now on." : "Relay cleared, back to the public ones.");
+  });
+  byId("export-cfg").addEventListener("click", exportConfig);
+  byId("export-opml").addEventListener("click", exportOpml);
+  byId("import-cfg").addEventListener("click", function(){ byId("file-in").click(); });
+  byId("file-in").addEventListener("change", function(e){
+    if(e.target.files && e.target.files[0]) importConfig(e.target.files[0]);
+    e.target.value = "";
+  });
+  byId("theme-desk").addEventListener("click", cycleTheme);
+  byId("theme-mob").addEventListener("click", cycleTheme);
+
+  document.addEventListener("keydown", function(e){
+    if(e.metaKey || e.ctrlKey || e.altKey) return;
+    var tag = (e.target.tagName || "").toLowerCase();
+    if(tag === "input" || tag === "textarea" || tag === "select") return;
+    if(e.key === "r"){ e.preventDefault(); refresh(); }
+    if(e.key === "/"){ e.preventDefault(); go("feed"); byId("search").focus(); }
+  });
+  document.addEventListener("visibilitychange", function(){
+    if(document.visibilityState !== "visible") return;
+    if(S.pollMin && S.lastCheck && Date.now() - S.lastCheck >= S.pollMin * 60000) refresh();
+  });
+}
+
+/* =====================================================================
+   13. Start
+   ===================================================================== */
+function start(){
+  applyTheme();
+  byId("poll").value = String(S.pollMin);
+  byId("proxy").value = S.proxy || "";
+  S.items = (S.cache || []).filter(function(it){ return sourceById(it.sourceId); });
+  S.items.sort(function(a, b){ return (b.at || 0) - (a.at || 0); });
+  bind();
+  render();
+  startClock();
+  refresh();
+}
+
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
+else start();
+
+})();
+</script>
+</body>
+</html>
